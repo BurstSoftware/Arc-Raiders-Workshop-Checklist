@@ -60,22 +60,37 @@ data = [
 
 df = pd.DataFrame(data, columns=["Amount", "Material", "Upgrades"])
 
-# ---- Expand upgrades into rows ----
+# Expand upgrades
 df_expanded = df.assign(Upgrade=df["Upgrades"].str.split(", ")).explode("Upgrade")
+
+# Create workstation category column
+df_expanded["Workstation"] = df_expanded["Upgrade"].str.extract(r"(^[A-Za-z ]+)")
 
 # ---- Sidebar Filters ----
 st.sidebar.header("Filters")
 
-all_upgrades = sorted(df_expanded["Upgrade"].unique())
-selected_upgrades = st.sidebar.multiselect(
-    "Select Upgrade(s)",
-    all_upgrades,
+# Workstation Filter
+workstations = sorted(df_expanded["Workstation"].unique())
+selected_workstations = st.sidebar.multiselect(
+    "Filter by Workstation",
+    workstations,
 )
 
+# Upgrade Filter
+upgrades = sorted(df_expanded["Upgrade"].unique())
+selected_upgrades = st.sidebar.multiselect(
+    "Filter by Upgrade Level",
+    upgrades,
+)
+
+# Material Search
 search_material = st.sidebar.text_input("Search Material")
 
 # ---- Filtering Logic ----
 filtered_df = df_expanded.copy()
+
+if selected_workstations:
+    filtered_df = filtered_df[filtered_df["Workstation"].isin(selected_workstations)]
 
 if selected_upgrades:
     filtered_df = filtered_df[filtered_df["Upgrade"].isin(selected_upgrades)]
@@ -85,31 +100,20 @@ if search_material:
         filtered_df["Material"].str.contains(search_material, case=False)
     ]
 
-# ---- Aggregate totals ----
-summary_df = (
-    filtered_df.groupby("Material", as_index=False)["Amount"]
-    .sum()
-    .sort_values("Amount", ascending=False)
-)
+# ---- Create clickable links for materials ----
+def make_clickable(material):
+    base_url = "https://www.google.com/search?q=ARC+Raiders+"
+    return f'<a href="{base_url}{material.replace(" ", "+")}" target="_blank">{material}</a>'
+
+filtered_df["Material"] = filtered_df["Material"].apply(make_clickable)
 
 # ---- Display ----
-col1, col2 = st.columns(2)
+st.subheader("📋 Filtered Requirements")
 
-with col1:
-    st.subheader("📋 Filtered Requirements")
-    st.dataframe(filtered_df[["Upgrade", "Material", "Amount"]], use_container_width=True)
-
-with col2:
-    st.subheader("📊 Total Materials Needed")
-    st.dataframe(summary_df, use_container_width=True)
-
-# ---- Download ----
-csv = summary_df.to_csv(index=False).encode("utf-8")
-st.download_button(
-    label="⬇ Download Summary CSV",
-    data=csv,
-    file_name="arc_raiders_workshop_requirements.csv",
-    mime="text/csv",
+st.markdown(
+    filtered_df[["Upgrade", "Material", "Amount"]]
+    .to_html(escape=False, index=False),
+    unsafe_allow_html=True,
 )
 
 st.markdown("---")
