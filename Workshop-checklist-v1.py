@@ -117,4 +117,4 @@ st.markdown(
 )
 
 st.markdown("---")
-st.caption("Built with Streamlit for ARC Raiders Workshop Planning")
+st.caption("Built By Nathan Rossow @ Burst Sofware Development for ARC Raiders Workshop Planning")
